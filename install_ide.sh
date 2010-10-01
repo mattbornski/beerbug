@@ -6,13 +6,18 @@ VIRTUALWIRE="VirtualWire-1.5"
 BASE=`readlink -f \`dirname $0\``
 
 pushd $BASE
+rm -rf bin
 mkdir bin
 cd bin
 tar xvf $BASE/toolkits/$ARDUINO.tgz
 cd $ARDUINO/libraries
-unzip $BASE/toolkis/$VIRTUALWIRE.zip
+unzip $BASE/toolkits/$VIRTUALWIRE.zip
 cd $BASE
 
-ln -s bin/$ARDUINO/arduino run_ide
+rm run_ide.sh
+echo "#!/bin/bash" >> run_ide.sh
+echo "" >> run_ide.sh
+echo "$BASE/bin/$ARDUINO/arduino" >> run_ide.sh
+chmod +x run_ide.sh
 
 popd

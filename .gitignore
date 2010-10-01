@@ -1,2 +1,3 @@
 bin/
-run_ide
+run_*.sh
+*.swp

@@ -15,7 +15,7 @@ def readSample(port):
     # Not the most efficient way to communicate over the port,
     # but I'm not exactly I/O limited here.
     try:
-        temp = int(port.readline().split()[0])
+        temp = float(port.readline().split()[0])
         return temp
     except (ValueError, IndexError):
         # Format was unexpected.  This can occur as communications can be

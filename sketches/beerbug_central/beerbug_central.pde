@@ -13,14 +13,10 @@ void loop()
   uint8_t inbound_buflen = VW_MAX_MESSAGE_LEN;
   vw_wait_rx();
   if (vw_get_message(inbound_buf, &inbound_buflen)) {
-    // Non-blocking
-    int i;
-    // Message with a good checksum received, dump it.
-    for (i = 0; i < inbound_buflen; i++) {
-      Serial.print((int)inbound_buf[i]);
-      Serial.print(" ");
+    if (inbound_buflen == 2) {
+      Serial.print((float)((float)inbound_buf[0] + ((float)inbound_buf[1] / 255.0)));
+      Serial.print(" degrees fahrenheit");
+      Serial.println("");
     }
-    Serial.print("degrees fahrenheit");
-    Serial.println("");
   }
 }

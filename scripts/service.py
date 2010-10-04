@@ -2,14 +2,13 @@
 
 import ConfigParser
 import datetime
-import gdata.docs
-import gdata.docs.service
-import gdata.spreadsheet.service
+import gdata.spreadsheet.text_db
 import getpass
 import glob
 import os.path
 import serial
 import sys
+import time
 import traceback
 
 def readSample(port):
@@ -18,72 +17,65 @@ def readSample(port):
     try:
         temp = int(port.readline().split()[0])
         return temp
-    except:
+    except (ValueError, IndexError):
+        # Format was unexpected.  This can occur as communications can be
+        # disrupted.
         pass
 
 def serve(username, password):
-    while True:
-        port = None
-        # Detect which USB device the Arduino lives on.
-        for device in glob.glob('/dev/ttyUSB*'):
-            try:
-                port = serial.Serial(device)
-            except:
-                pass
-        if port is not None:
-# TODO This code was trying to determine if we need to create a spreadsheet
-# to store beerbug samples in.  It requires a separate login apart from the
-# spreadsheets API.  I haven't seriously attempted to create the document,
-# I just made one manually.
-#            docs_client = gdata.docs.service.DocsService(source='beerbug')
-#            docs_client.ClientLogin(username, password)
-#            q = gdata.docs.service.DocumentQuery(
-#              categories = ['spreadsheet'],
-#              params = {'title':'beerbug', 'title-exact':'false'}
-#            )
-#            feed = docs_client.Query(str(q))
-#            if not feed.entry:
-#                print >> sys.stderr, 'no such document'
-#            else:
-#                for entry in feed.entry:
-#                    print 'Candidate Document:'
-#                    print entry.title.text
-            spreadsheet_client = gdata.spreadsheet.service.SpreadsheetsService()
-            spreadsheet_client.email = username
-            spreadsheet_client.password = password
-            spreadsheet_client.source = 'beerbug'
-            spreadsheet_client.ProgrammaticLogin()
-            feed = spreadsheet_client.GetSpreadsheetsFeed()
-            key = None
-            id = None
-            for spreadsheet in feed.entry:
-                if 'beerbug' in spreadsheet.title.text.lower():
-                    key = spreadsheet.id.text.rsplit('/', 1)[1]
-                    for worksheet in spreadsheet_client.GetWorksheetsFeed(key).entry:
-                        if id is None:
-                            id = worksheet.id.text.rsplit('/', 1)[1]
-                            break
-                    if id is not None:
-                        break
-                    else:
-                        key = None
-            if key is not None and id is not None:
+    try:
+        while True:
+            port = None
+            # Detect which USB device the Arduino lives on.
+            for device in glob.glob('/dev/ttyUSB*'):
+                try:
+                    # TODO: Figure out how to determine if this is our
+                    # device or another device.
+                    port = serial.Serial(device)
+                except KeyboardInterrupt:
+                    # Do not handle, pass up to outside handler.
+                    raise KeyboardInterrupt
+                except:
+                    # Errors are to be expected while randomly probing
+                    # ports.
+                    pass
+            if port is not None:
+                client = gdata.spreadsheet.text_db.DatabaseClient(
+                  username = username, password = password)
+                db = client.GetDatabases(name = 'Beerbug Testing')[0]
+                table = db.GetTables()[0]
                 try:
                     while True:
-                        now = \
-                          datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S')
-                        sample = str(readSample(port))
+                        now = datetime.datetime.now().strftime(
+                          '%m/%d/%Y %H:%M:%S')
+                        try:
+                            sample = readSample(port)
+                        except KeyboardInterrupt:
+                            # Do not handle, pass up to outside handler.
+                            raise KeyboardInterrupt
+                        except:
+                            # Throw the error and then attempt to continue.
+                            print >> sys.stderr, 'Problem reading sample.'
+                            traceback.print_exc(file=sys.stderr)
                         if sample is not None:
-                            print 'temperature is ' + sample + ' degrees F'
-                            spreadsheet_client.InsertRow(
-                              {'Time':now, 'Temperature':sample},
-                              key, id)
+                            table.AddRecord(
+                              {'time':now, 'temperature':str(sample)},
+                            )
+                except KeyboardInterrupt:
+                    # Do not handle, pass up to outside handler.
+                    raise KeyboardInterrupt
                 except:
+                    # Throw the error and then attempt to continue.
                     print >> sys.stderr, 'Problem uploading sample'
                     traceback.print_exc(file=sys.stderr)
-        else:
-            print >> sys.stderr, 'Unable to locate Arduino on a USB port.'
-            time.sleep(30)
+            else:
+                # Notify user and attempt to continue later.
+                print >> sys.stderr, 'Unable to locate Arduino on a USB port.'
+                # Unlike some of the other errors, this one most likely
+                # requires human interaction to fix, so give them some time.
+                time.sleep(30)
+    except KeyboardInterrupt:
+        pass
 
 def serve_forever():
     username = None
@@ -92,10 +84,7 @@ def serve_forever():
     # If not present, prompt the user for their credentials.
     parser = ConfigParser.SafeConfigParser()
     path = os.path.expanduser('~/.beerbug/beerbug.ini')
-    try:
-        parser.read(path)
-    except:
-        traceback.print_exc(file=sys.stderr)
+    parser.read(path)
     if parser is not None:
         try:
             try:
@@ -109,7 +98,8 @@ def serve_forever():
         except ConfigParser.NoSectionError:
             pass
     if username is None:
-        username = raw_input('Enter Google Docs username [' + getpass.getuser() + ']: ')
+        username = raw_input('Enter Google Docs username [' \
+          + getpass.getuser() + ']: ')
         if username.strip() == '':
             username = getpass.getuser()
     if password is None:

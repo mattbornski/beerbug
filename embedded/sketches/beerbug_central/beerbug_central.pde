@@ -3,6 +3,7 @@
 void setup()
 {
   Serial.begin(9600);
+  vw_set_rx_pin(11);
   vw_setup(2400);
   vw_rx_start();
 }

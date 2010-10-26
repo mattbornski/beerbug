@@ -20,7 +20,7 @@ cd $USER_BASE
 rm run_ide.sh
 echo "#!/bin/bash" >> run_ide.sh
 echo "" >> run_ide.sh
-echo "$BASE/bin/$ARDUINO/arduino" >> run_ide.sh
+echo "$FILES_BASE/bin/$ARDUINO/arduino" >> run_ide.sh
 chmod +x run_ide.sh
 
 popd

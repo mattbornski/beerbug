@@ -3,7 +3,9 @@
 void setup()
 {
   vw_set_tx_pin(10);
+  vw_set_rx_pin(11);
   vw_setup(2400);
+  vw_rx_start();
 }
 
 float getVoltage(int pin)

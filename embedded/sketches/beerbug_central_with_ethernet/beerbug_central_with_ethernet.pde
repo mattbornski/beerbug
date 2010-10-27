@@ -17,6 +17,8 @@
 
 #include <SPI.h>
 #include <Ethernet.h>
+#include <Time.h>
+#include <VirtualWire.h>
 
 // Enter a MAC address and IP address for your controller below.
 // The IP address will be dependent on your local network:
@@ -33,14 +35,29 @@ void setup()
   // start the Ethernet connection and the server:
   Ethernet.begin(mac, ip);
   server.begin();
-  vw_set_tx_pin(10);
-  vw_set_rx_pin(11);
+  // The ethernet shield uses 10 and 11.  VirtualWire requires PWM pins.
+  vw_set_tx_pin(5);
+  vw_set_rx_pin(6);
   vw_setup(2400);
   vw_rx_start();
 }
 
 void loop()
 {
+  static float lastReading;
+  static long iteration;
+  iteration += 1;
+  // check for received data
+  uint8_t inbound_buf[VW_MAX_MESSAGE_LEN];
+  uint8_t inbound_buflen = VW_MAX_MESSAGE_LEN;
+  if (vw_wait_rx_max(200)) {
+    if (vw_get_message(inbound_buf, &inbound_buflen)) {
+      if (inbound_buflen == 2) {
+        lastReading = (float)((float)inbound_buf[0] + ((float)inbound_buf[1] / 255.0));
+      }
+    }
+  }
+  
   // listen for incoming clients
   Client client = server.available();
   if (client) {
@@ -58,14 +75,12 @@ void loop()
           client.println("Content-Type: text/html");
           client.println();
 
-          // output the value of each analog input pin
-          for (int analogChannel = 0; analogChannel < 6; analogChannel++) {
-            client.print("analog input ");
-            client.print(analogChannel);
-            client.print(" is ");
-            client.print(analogRead(analogChannel));
-            client.println("<br />");
-          }
+          client.print("iteration: ");
+          client.print(iteration);
+          client.println("<br />");
+          client.print("last reading: ");
+          client.print(lastReading);
+          client.println("<br />");
           break;
         }
         if (c == '\n') {

@@ -88,11 +88,11 @@ def serve_forever():
     if parser is not None:
         try:
             try:
-                username = parser.get('beerbug', 'username')
+                username = parser.get('google', 'username')
             except ConfigParser.NoOptionError:
                 pass
             try:
-                password = parser.get('beerbug', 'password')
+                password = parser.get('google', 'password')
             except ConfigParser.NoOptionError:
                 pass
         except ConfigParser.NoSectionError:

@@ -1,65 +1,60 @@
 #!/usr/bin/env python
 
-import ConfigParser
-import datetime
-import gdata.spreadsheet.text_db
-import getpass
-import glob
-import os.path
-import serial
-import sys
-import time
+import BaseHTTPServer
 import traceback
+import urlparse
 
-def readSample(port):
-    # Not the most efficient way to communicate over the port,
-    # but I'm not exactly I/O limited here.
+import google
+
+endpoint = {
+  'bind_interface':     '',
+  'bind_port':          8000,
+  'target_document':    'Beerbug Testing',
+  'target_page':        'Brewing Environment Data',
+  'record_fields':      ['time', 'temperature'],
+}
+
+def application(environ, start_response):
+    global endpoint
+    status = 200
+    output = ''
     try:
-        temp = float(port.readline().split()[0])
-        return temp
-    except (ValueError, IndexError):
-        # Format was unexpected.  This can occur as communications can be
-        # disrupted.
-        pass
+        # Extract the key-value pairs from the query string.
+        record = dict(urlparse.parse_qsl(environ.get('QUERY_STRING', '')))
+        # Determine if the submitted record is authorized, by way of the
+        # API key.
+        
+        # Determine if the submitted record is well-formed.
+        for field in endpoint['record_fields']:
+            if not field in record:
+                raise KeyError('Record field "' + str(field) + '" missing.')
+        # Upload the record.
+        google.spreadsheet(endpoint['target_document'])[endpoint['target_page']].append(record)
+    except:
+        status = 500
+        output = traceback.format_exc()
+    response_headers = [
+      ('Content-Type', 'text/plain'),
+      ('Content-Length', str(len(output))),
+    ]
+    message = str(status) + ' ' \
+      + BaseHTTPServer.BaseHTTPRequestHandler.responses[status][0]
+    start_response(message, response_headers)
+    if output is not None:
+        return [output]
+    else:
+        return ['']
 
-class service:
-    schema = {'Beerbug Testing':['time', 'temperature']}
-    now = datetime.datetime.now().strftime(
-      '%m/%d/%Y %H:%M:%S')
-    sample = readSample(port)
-    if sample is not None:
-        table.AddRecord(
-          {'time':now, 'temperature':str(sample)},
-        )
-
-def serve_forever():
-    username = None
-    password = None
-    # Read the username and password from a config file.
-    # If not present, prompt the user for their credentials.
-    parser = ConfigParser.SafeConfigParser()
-    path = os.path.expanduser('~/.beerbug/beerbug.ini')
-    parser.read(path)
-    if parser is not None:
-        try:
-            try:
-                username = parser.get('beerbug', 'username')
-            except ConfigParser.NoOptionError:
-                pass
-            try:
-                password = parser.get('beerbug', 'password')
-            except ConfigParser.NoOptionError:
-                pass
-        except ConfigParser.NoSectionError:
-            pass
-    if username is None:
-        username = raw_input('Enter Google Docs username [' \
-          + getpass.getuser() + ']: ')
-        if username.strip() == '':
-            username = getpass.getuser()
-    if password is None:
-        password = getpass.getpass('Enter Google Docs password: ')
-    serve(username, password)
+def serve():
+    global endpoint
+    import wsgiref
+    import wsgiref.simple_server
+    try:
+        server = wsgiref.simple_server.make_server(
+          endpoint['bind_interface'], endpoint['bind_port'], application)
+        server.serve_forever()
+    except KeyboardInterrupt:
+        server.socket.close()
 
 if __name__ == '__main__':
-    serve_forever()
+    serve()

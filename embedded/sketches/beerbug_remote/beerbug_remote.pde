@@ -1,5 +1,7 @@
 #include <VirtualWire.h>
 
+long interval = 900000;
+
 void setup()
 {
   vw_set_tx_pin(10);
@@ -30,5 +32,5 @@ void loop()
   // Send the measurement.
   vw_send(outbound_buf, outbound_buflen);
   // Wait for next measurement interval.
-  delay(300000);
+  delay(interval);
 }

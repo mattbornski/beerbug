@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 import BaseHTTPServer
+import datetime
 import traceback
 import urlparse
 
@@ -11,7 +12,13 @@ endpoint = {
   'bind_port':          8000,
   'target_document':    'Beerbug Testing',
   'target_page':        'Brewing Environment Data',
-  'record_fields':      ['time', 'temperature'],
+  'record_required':    {
+    'temperature':None,
+    'secret':'123987',
+  },
+  'record_additional':  {
+    'time':lambda: datetime.datetime.now().strftime('%m/%d/%Y %H:%M:%S'),
+  },
 }
 
 def application(environ, start_response):
@@ -21,13 +28,15 @@ def application(environ, start_response):
     try:
         # Extract the key-value pairs from the query string.
         record = dict(urlparse.parse_qsl(environ.get('QUERY_STRING', '')))
-        # Determine if the submitted record is authorized, by way of the
-        # API key.
-        
         # Determine if the submitted record is well-formed.
-        for field in endpoint['record_fields']:
+        for field in endpoint['record_required']:
             if not field in record:
                 raise KeyError('Record field "' + str(field) + '" missing.')
+            elif endpoint['record_required'][field] is not None:
+                if endpoint['record_requierd'][field] != record[field]:
+                    raise ValueError('Record field "' + str(field) + '" incorrect.')
+        for field in endpoint['record_additional']:
+            record[field] = endpoint['record_additional'][field]()
         # Upload the record.
         google.spreadsheet(endpoint['target_document'])[endpoint['target_page']].append(record)
     except:

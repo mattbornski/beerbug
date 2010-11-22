@@ -3,21 +3,40 @@
 #include <Time.h>
 #include <VirtualWire.h>
 
-// Enter a MAC address and IP address for your controller below.
-// The IP address will be dependent on your local network:
+// Ethernet configuration
+// ======================
 byte mac[] = { 0xC0, 0xFF, 0xEE, 0xC0, 0xFF, 0xEE };
+// TODO remove this hardcoded IP when DHCP is operational
 byte ip[] = { 192, 168, 10, 250 };
-byte server[] = { 67, 205, 60, 63 };
+
+// Beerbug configuration
+// =====================
+char *server = "brewing.mattborn.net";
+// TODO remove this hardcoded IP when DNS is operational
+byte resolved[] = { 67, 205, 60, 63 };
 int port = 80;
+char *url = "/report";
 
 char secret[] = "123987";
 
-Client client(server, port);
+Client client = Client(resolved, port);
 
 void setup()
 {
-  // start the Ethernet connection and the server:
-  Ethernet.begin(mac, ip);
+  // Ethernet initialization
+  // =======================
+  // Obtain an IP address from the DHCP server
+  //EthernetDHCP.begin(mac);
+  // Configure the DNS server
+  //EthernetDNS.setDNSServer(EthernetDHCP.dnsIpAddress());
+  Ethernet.begin(ip, mac);
+  // Connect to the designated server
+  //byte resolved[4];
+  //EthernetDNS.resolveHostName(server, resolved);
+  //client = Client(resolved, port);
+
+  // Wireless initialization
+  // =======================
   // The ethernet shield uses 10 and 11.  VirtualWire requires PWM pins.
   vw_set_tx_pin(5);
   vw_set_rx_pin(6);
@@ -42,7 +61,9 @@ void loop()
   }
   
   if (uploadPending && client.connect()) {
-    client.print("GET /beerbug/report?secret=");
+    client.print("GET ");
+    client.print(url);
+    client.print("?secret=");
     client.print(secret);
     client.print("&temperature=");
     client.print(lastReading);

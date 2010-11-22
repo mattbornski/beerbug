@@ -1,0 +1,12 @@
+The EMBEDDED portion
+====================
+1. Required tools
+ - An Arduino with temp sensor and wireless transmitter
+ - An Arduino with wireless receiver and ethernet shield
+ - A DHCP-enabled router with an upstream connection
+
+The CLOUD portion
+=================
+1. Required tools
+  - A Google Docs account
+  - A mod_passenger enabled web server
